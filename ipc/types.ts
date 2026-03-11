@@ -52,10 +52,24 @@ export type UpdateInfo =
     checkedAt: number
   }
 
+export type UpstreamUpdateInfo =
+  {
+    state: 'initial' | 'checking'
+  } | {
+    state: 'update-available'
+    checkedAt: number
+    version: string
+    url: string
+  } | {
+    state: 'update-not-available' | 'error'
+    checkedAt: number
+  }
+
 export interface HostState {
   contents: string | null
   version: string
   updater: UpdateInfo
+  upstreamVersion: UpstreamUpdateInfo
 }
 
 export type IpcEvent =
@@ -69,6 +83,7 @@ export type IpcEvent =
   // events used by any type of Client:
   IpcSaveConfig |
   IpcUpdaterState |
+  IpcUpstreamVersionState |
   IpcGameLog |
   IpcClientIsActive |
   IpcLogEntry |
@@ -165,6 +180,9 @@ type IpcGameLog =
 
 type IpcUpdaterState =
   Event<'MAIN->CLIENT::updater-state', UpdateInfo>
+
+type IpcUpstreamVersionState =
+  Event<'MAIN->CLIENT::upstream-version-state', UpstreamUpdateInfo>
 
 // Hotkeyable actions are defined in `ShortcutAction`.
 // Actions below are triggered by user interaction with the UI.

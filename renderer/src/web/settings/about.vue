@@ -5,8 +5,8 @@
       <p class="text-base">Awakened PoE Trade</p>
       <p class="">{{ t('app.version', [version]) }}</p>
       <div class="flex gap-2">
-        <a class="border-b" href="https://github.com/SnosMe/awakened-poe-trade/releases" target="_blank">{{ t('app.release_notes') }}</a>
-        <a class="border-b" href="https://github.com/SnosMe/awakened-poe-trade/issues" target="_blank">{{ t('app.report_bug') }}</a>
+        <a class="border-b" :href="forkReleasesUrl" target="_blank">{{ t('app.release_notes') }}</a>
+        <a class="border-b" :href="forkIssuesUrl" target="_blank">{{ t('app.report_bug') }}</a>
       </div>
     </div>
     <div class="border border-gray-600 rounded p-2 whitespace-nowrap min-w-min w-72">
@@ -14,6 +14,12 @@
       <p>{{ info.str2 }}</p>
       <button v-if="info.action" @click="info.action"
         class="btn w-full mt-1">{{ info.actionText }}</button>
+    </div>
+    <div v-if="upstreamInfo" class="border border-yellow-700 rounded p-2 whitespace-normal min-w-min w-72 mt-3">
+      <p>{{ upstreamInfo.str1 }}</p>
+      <p>{{ upstreamInfo.str2 }}</p>
+      <button @click="upstreamInfo.action"
+        class="btn w-full mt-1">{{ upstreamInfo.actionText }}</button>
     </div>
     <div class="text-center mt-auto py-8">
       <p>{{ t('app.contact_me') }} <br><span class="font-sans text-gray-500 select-all">&lt;@295216259795124225&gt;</span></p>
@@ -31,6 +37,10 @@ import { useI18n } from 'vue-i18n'
 import { Host } from '@/web/background/IPC'
 import { DateTime } from 'luxon'
 
+const FORK_RELEASES_URL = 'https://github.com/Davst/awakened-poe-trade/releases'
+const FORK_ISSUES_URL = 'https://github.com/Davst/awakened-poe-trade/issues'
+const UPSTREAM_RELEASES_URL = 'https://github.com/SnosMe/awakened-poe-trade/releases/latest'
+
 function checkForUpdates () {
   Host.sendEvent({
     name: 'CLIENT->MAIN::user-action',
@@ -39,7 +49,11 @@ function checkForUpdates () {
 }
 
 function openDownloadPage () {
-  window.open('https://snosme.github.io/awakened-poe-trade/download')
+  window.open(FORK_RELEASES_URL)
+}
+
+function openUpstreamReleasePage (url = UPSTREAM_RELEASES_URL) {
+  window.open(url)
 }
 
 function quitAndInstall () {
@@ -79,10 +93,27 @@ export default defineComponent({
       }
     })
 
+    const upstreamInfo = computed(() => {
+      const rawInfo = Host.upstreamVersion.value
+      if (rawInfo.state !== 'update-available') {
+        return null
+      }
+
+      return {
+        str1: t('updates.upstream_available', [rawInfo.version]),
+        str2: t('updates.upstream_explainer'),
+        action: () => openUpstreamReleasePage(rawInfo.url),
+        actionText: t('updates.upstream_release_page')
+      }
+    })
+
     return {
       t,
       info,
-      version: Host.version
+      upstreamInfo,
+      version: Host.version,
+      forkReleasesUrl: FORK_RELEASES_URL,
+      forkIssuesUrl: FORK_ISSUES_URL
     }
   }
 })
