@@ -358,8 +358,8 @@ function parseNamePlate (section: string[]) {
   const item: ParserState = {
     rarity: undefined,
     category: undefined,
-    name: name,
-    baseType: baseType,
+    name,
+    baseType,
     isUnidentified: false,
     isCorrupted: false,
     newMods: [],
@@ -759,13 +759,12 @@ function parseModifiers (section: string[], item: ParsedItem) {
   return 'SECTION_PARSED'
 }
 
-function parseDisenchantCandidates(section: string[], item: ParsedItem) {
-
+function parseDisenchantCandidates (section: string[], item: ParsedItem) {
   // TODO: Improve condition to check only items that can be disenchanting. Checking by `item.category` can help but it's not sure.
   if (item.rarity !== ItemRarity.Unique) return 'PARSER_SKIPPED'
 
-  const refName = item!.info.refName
-  const possibleItems: {name: string, refName: string, icon: string}[] = []
+  const refName = item.info.refName
+  const possibleItems: Array<{ name: string, refName: string, icon: string }> = []
 
   if (item.isUnidentified) {
     for (const match of ITEMS_ITERATOR(JSON.stringify(refName))) {
@@ -774,10 +773,10 @@ function parseDisenchantCandidates(section: string[], item: ParsedItem) {
       }
     }
   } else {
-    possibleItems.push({ name: item.info.name, refName: refName, icon: item.info.icon })
+    possibleItems.push({ name: item.info.name, refName, icon: item.info.icon })
   }
 
-  const items: {name: string, value: string, icon: string}[] = []
+  const items: Array<{ name: string, value: string, icon: string }> = []
   const ilvl = item.itemLevel || 0
   // 50% increased Thaumaturgic Dust per Influence Type
   let increaseByFactors = item.influences.length * 50
