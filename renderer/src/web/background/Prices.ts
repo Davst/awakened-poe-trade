@@ -51,7 +51,7 @@ export const usePoeninja = createGlobalState(() => {
     try {
       isLoading.value = true
       downloadController = new AbortController()
-      const response = await Host.proxy(`poe.ninja/api/data/DenseOverviews?league=${league.id}&language=en`, {
+      const response = await Host.proxy(`poe.ninja/poe1/api/economy/current/dense/overviews?league=${league.id}&language=en`, {
         signal: downloadController.signal
       })
       const jsonBlob = await response.text()
@@ -77,8 +77,13 @@ export const usePoeninja = createGlobalState(() => {
     switch (league) {
       case 'Standard': return 'standard'
       case 'Hardcore': return 'hardcore'
-      default:
-        return (league.startsWith('Hardcore ')) ? 'challengehc' : 'challenge'
+      default: {
+        let ninjaId = league.replace('Hardcore ', '').toLowerCase()
+        if (league.startsWith('Hardcore ')) {
+          ninjaId += 'hc'
+        }
+        return ninjaId
+      }
     }
   }
 
@@ -101,7 +106,7 @@ export const usePoeninja = createGlobalState(() => {
 
       return {
         ...info,
-        url: `https://poe.ninja/${selectedLeagueToUrl()}/${url}/${denseInfoToDetailsId(info)}`
+        url: `https://poe.ninja/poe1/economy/${selectedLeagueToUrl()}/${url}/${denseInfoToDetailsId(info)}`
       }
     }
     return null

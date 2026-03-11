@@ -1,10 +1,10 @@
-import { ItemInfluence, ItemCategory, ParsedItem, ItemRarity } from '@/parser'
+import { ItemInfluence, ItemCategory, ParsedItem } from '@/parser'
 import { ItemFilters, StatFilter, INTERNAL_TRADE_IDS, InternalTradeId } from '../filters/interfaces'
 import { setProperty as propSet } from 'dot-prop'
 import { DateTime } from 'luxon'
 import { Host } from '@/web/background/IPC'
 import { TradeResponse, Account, getTradeEndpoint, adjustRateLimits, RATE_LIMIT_RULES, preventQueueCreation } from './common'
-import { STAT_BY_REF } from '@/assets/data'
+import { stat, STAT_BY_REF_V2, pseudoStatByRef } from '@/assets/data'
 import { RateLimiter } from './RateLimiter'
 import { ModifierType } from '@/parser/modifiers'
 import { Cache } from './Cache'
@@ -49,34 +49,35 @@ export const CATEGORY_TO_TRADE_ID = new Map([
   [ItemCategory.SanctumRelic, 'sanctum.relic'],
   [ItemCategory.Tincture, 'tincture'],
   [ItemCategory.Charm, 'azmeri.charm'],
-  [ItemCategory.Idol, 'idol']
+  [ItemCategory.Idol, 'idol'],
+  [ItemCategory.Graft, 'graft']
 ])
 
 const TOTAL_MODS_TEXT = {
   CRAFTED_MODIFIERS: [
-    '# Crafted Modifiers',
-    '# Crafted Prefix Modifiers',
-    '# Crafted Suffix Modifiers'
+    stat('# Crafted Modifiers'),
+    stat('# Crafted Prefix Modifiers'),
+    stat('# Crafted Suffix Modifiers')
   ],
   EMPTY_MODIFIERS: [
-    '# Empty Modifiers',
-    '# Empty Prefix Modifiers',
-    '# Empty Suffix Modifiers'
+    stat('# Empty Modifiers'),
+    stat('# Empty Prefix Modifiers'),
+    stat('# Empty Suffix Modifiers')
   ],
   TOTAL_MODIFIERS: [
-    '# Modifiers',
-    '# Prefix Modifiers',
-    '# Suffix Modifiers'
+    stat('# Modifiers'),
+    stat('# Prefix Modifiers'),
+    stat('# Suffix Modifiers')
   ]
 }
 
 const INFLUENCE_PSEUDO_TEXT = {
-  [ItemInfluence.Shaper]: 'Has Shaper Influence',
-  [ItemInfluence.Crusader]: 'Has Crusader Influence',
-  [ItemInfluence.Hunter]: 'Has Hunter Influence',
-  [ItemInfluence.Elder]: 'Has Elder Influence',
-  [ItemInfluence.Redeemer]: 'Has Redeemer Influence',
-  [ItemInfluence.Warlord]: 'Has Warlord Influence'
+  [ItemInfluence.Shaper]: stat('Has Shaper Influence'),
+  [ItemInfluence.Crusader]: stat('Has Crusader Influence'),
+  [ItemInfluence.Hunter]: stat('Has Hunter Influence'),
+  [ItemInfluence.Elder]: stat('Has Elder Influence'),
+  [ItemInfluence.Redeemer]: stat('Has Redeemer Influence'),
+  [ItemInfluence.Warlord]: stat('Has Warlord Influence')
 }
 
 interface FilterBoolean { option?: 'true' | 'false' }
@@ -84,7 +85,7 @@ interface FilterRange { min?: number, max?: number }
 
 interface TradeRequest { /* eslint-disable camelcase */
   query: {
-    status: { option: 'online' | 'onlineleague' | 'any' }
+    status: { option: 'online' | 'securable' | 'available' | 'any' }
     name?: string | { discriminator: string, option: string }
     type?: string | { discriminator: string, option: string }
     stats: Array<{
@@ -127,9 +128,13 @@ interface TradeRequest { /* eslint-disable camelcase */
           gem_level?: FilterRange
           corrupted?: FilterBoolean
           fractured_item?: FilterBoolean
+          gem_imbued?: FilterBoolean
           mirrored?: FilterBoolean
+          split?: FilterBoolean
           identified?: FilterBoolean
           stack_size?: FilterRange
+          memory_level?: FilterRange
+          foulborn_item?: FilterBoolean
         }
       }
       armour_filters?: {
@@ -154,9 +159,13 @@ interface TradeRequest { /* eslint-disable camelcase */
       map_filters?: {
         filters: {
           map_tier?: FilterRange
+          map_iiq?: FilterRange
+          map_iir?: FilterRange
+          map_packsize?: FilterRange
           map_blighted?: FilterBoolean
           map_uberblighted?: FilterBoolean
           area_level?: FilterRange
+          map_completion_reward?: { option?: 'any' | string }
         }
       }
       heist_filters?: {
@@ -222,6 +231,7 @@ interface FetchResult {
       currency: string
       type: '~price'
     }
+    fee?: number
     account: Account
   }
 }
@@ -238,6 +248,7 @@ export interface PricingResult {
   priceCurrency: string
   isMine: boolean
   hasNote: boolean
+  hasFee: boolean
   accountName: string
   accountStatus: 'offline' | 'online' | 'afk'
   ign: string
@@ -249,7 +260,7 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
       status: {
         option: filters.trade.offline
           ? 'any'
-          : (filters.trade.onlineInLeague ? 'onlineleague' : 'online')
+          : (filters.trade.merchantOnly ? 'securable' : 'available')
       },
       stats: [
         { type: 'and', filters: [] }
@@ -266,7 +277,7 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
     propSet(query.filters, 'trade_filters.filters.price.option', filters.trade.currency)
   }
 
-  if (filters.trade.collapseListings === 'api') {
+  if (filters.trade.collapseListings === 'api' && (filters.trade.offline || !filters.trade.merchantOnly)) {
     propSet(query.filters, 'trade_filters.filters.collapse.option', String(true))
   }
 
@@ -293,7 +304,7 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
   if (filters.foil && !filters.foil.disabled) {
     propSet(query.filters, 'type_filters.filters.rarity.option', 'uniquefoil')
   } else if (filters.rarity) {
-    propSet(query.filters, 'type_filters.filters.rarity.option', filters.rarity.value)
+    propSet(query.filters, 'type_filters.filters.rarity.option', (filters.rarity.disabled) ? 'nonunique' : filters.rarity.value)
   }
 
   if (activeSearch.category) {
@@ -311,15 +322,16 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
   if (filters.fractured?.value === false) {
     propSet(query.filters, 'misc_filters.filters.fractured_item.option', String(false))
   }
-  if (filters.mirrored) {
-    if (filters.mirrored.disabled) {
-      propSet(query.filters, 'misc_filters.filters.mirrored.option', String(false))
-    }
-  } else if (
-    item.rarity === ItemRarity.Normal ||
-    item.rarity === ItemRarity.Magic ||
-    item.rarity === ItemRarity.Rare
-  ) {
+  if (filters.imbuedGem?.disabled) {
+    propSet(query.filters, 'misc_filters.filters.gem_imbued.option', String(false))
+  }
+  if (filters.split?.disabled) {
+    propSet(query.filters, 'misc_filters.filters.split.option', String(false))
+  }
+  if (filters.foulborn?.value === false) {
+    propSet(query.filters, 'misc_filters.filters.foulborn_item.option', String(false))
+  }
+  if (filters.mirrored?.disabled) {
     propSet(query.filters, 'misc_filters.filters.mirrored.option', String(false))
   }
 
@@ -363,12 +375,19 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
     }
   }
 
+  if (filters.mapCompletionReward) {
+    propSet(query.filters, 'map_filters.filters.map_completion_reward.option', filters.mapCompletionReward.nameTrade)
+  }
+
   if (filters.unidentified && !filters.unidentified.disabled) {
     propSet(query.filters, 'misc_filters.filters.identified.option', String(false))
   }
 
   if (filters.areaLevel && !filters.areaLevel.disabled) {
     propSet(query.filters, 'map_filters.filters.area_level.min', filters.areaLevel.value)
+    if (filters.areaLevel.max) {
+      propSet(query.filters, 'map_filters.filters.area_level.max', filters.areaLevel.max)
+    }
   }
 
   if (filters.heistWingsRevealed && !filters.heistWingsRevealed.disabled) {
@@ -382,9 +401,9 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
   for (const stat of stats) {
     if (stat.tradeId[0] === 'item.has_empty_modifier') {
       const TARGET_ID = {
-        CRAFTED_MODIFIERS: STAT_BY_REF(TOTAL_MODS_TEXT.CRAFTED_MODIFIERS[stat.option!.value])!.trade.ids[ModifierType.Pseudo][0],
-        EMPTY_MODIFIERS: STAT_BY_REF(TOTAL_MODS_TEXT.EMPTY_MODIFIERS[stat.option!.value])!.trade.ids[ModifierType.Pseudo][0],
-        TOTAL_MODIFIERS: STAT_BY_REF(TOTAL_MODS_TEXT.TOTAL_MODIFIERS[0])!.trade.ids[ModifierType.Pseudo][0]
+        CRAFTED_MODIFIERS: pseudoStatByRef(TOTAL_MODS_TEXT.CRAFTED_MODIFIERS[stat.option!.value])!.trade.ids[ModifierType.Pseudo][0],
+        EMPTY_MODIFIERS: pseudoStatByRef(TOTAL_MODS_TEXT.EMPTY_MODIFIERS[stat.option!.value])!.trade.ids[ModifierType.Pseudo][0],
+        TOTAL_MODIFIERS: pseudoStatByRef(TOTAL_MODS_TEXT.TOTAL_MODIFIERS[0])!.trade.ids[ModifierType.Pseudo][0]
       }
 
       query.stats.push({
@@ -406,19 +425,6 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
           { id: TARGET_ID.TOTAL_MODIFIERS, value: { min: 6, max: undefined }, disabled: stat.disabled }
         ]
       })
-    } else if ( // https://github.com/SnosMe/awakened-poe-trade/issues/758
-      item.category === ItemCategory.Flask &&
-      stat.statRef === '#% increased Charge Recovery' &&
-      !stats.some(s => s.statRef === '#% increased effect')
-    ) {
-      const reducedEffectId = STAT_BY_REF('#% increased effect')!.trade.ids[ModifierType.Explicit][0]
-      query.stats.push({
-        type: 'not',
-        disabled: stat.disabled,
-        filters: [
-          { id: reducedEffectId, disabled: stat.disabled }
-        ]
-      })
     }
 
     if (stat.disabled) continue
@@ -428,6 +434,10 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
       case 'item.base_percentile':
         propSet(query.filters, 'armour_filters.filters.base_defence_percentile.min', typeof input.min === 'number' ? input.min : undefined)
         propSet(query.filters, 'armour_filters.filters.base_defence_percentile.max', typeof input.max === 'number' ? input.max : undefined)
+        break
+      case 'item.memory_strands':
+        propSet(query.filters, 'misc_filters.filters.memory_level.min', typeof input.min === 'number' ? input.min : undefined)
+        propSet(query.filters, 'misc_filters.filters.memory_level.max', typeof input.max === 'number' ? input.max : undefined)
         break
       case 'item.armour':
         propSet(query.filters, 'armour_filters.filters.ar.min', typeof input.min === 'number' ? input.min : undefined)
@@ -469,48 +479,73 @@ export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], i
         propSet(query.filters, 'weapon_filters.filters.aps.min', typeof input.min === 'number' ? input.min : undefined)
         propSet(query.filters, 'weapon_filters.filters.aps.max', typeof input.max === 'number' ? input.max : undefined)
         break
+      case 'item.map_item_quantity':
+        propSet(query.filters, 'map_filters.filters.map_iiq.min', typeof input.min === 'number' ? input.min : undefined)
+        propSet(query.filters, 'map_filters.filters.map_iiq.max', typeof input.max === 'number' ? input.max : undefined)
+        break
+      case 'item.map_item_rarity':
+        propSet(query.filters, 'map_filters.filters.map_iir.min', typeof input.min === 'number' ? input.min : undefined)
+        propSet(query.filters, 'map_filters.filters.map_iir.max', typeof input.max === 'number' ? input.max : undefined)
+        break
+      case 'item.map_pack_size':
+        propSet(query.filters, 'map_filters.filters.map_packsize.min', typeof input.min === 'number' ? input.min : undefined)
+        propSet(query.filters, 'map_filters.filters.map_packsize.max', typeof input.max === 'number' ? input.max : undefined)
+        break
     }
   }
 
-  stats = stats.filter(stat => !INTERNAL_TRADE_IDS.includes(stat.tradeId[0] as any))
+  type BareStatFilter = Omit<StatFilter, 'statRef' | 'text' | 'tag' | 'sources'>
+  const realStats: BareStatFilter[] = stats.filter(stat =>
+    !INTERNAL_TRADE_IDS.includes(stat.tradeId[0] as any))
   if (filters.veiled) {
     for (const statRef of filters.veiled.statRefs) {
-      stats.push({
+      const statOrGroup = STAT_BY_REF_V2(statRef)!
+      const dbStats = ('stats' in statOrGroup) ? statOrGroup.stats : [statOrGroup]
+      realStats.push({
         disabled: filters.veiled.disabled,
-        statRef: undefined!,
-        text: undefined!,
-        tag: undefined!,
-        sources: undefined!,
-        tradeId: STAT_BY_REF(statRef)!.trade.ids[ModifierType.Veiled]
+        tradeId: dbStats
+          .filter(dbStat => ModifierType.Veiled in dbStat.trade.ids)
+          .map(dbStat => dbStat.trade.ids[ModifierType.Veiled][0])
       })
     }
   }
 
   if (filters.influences) {
     for (const influence of filters.influences) {
-      stats.push({
+      realStats.push({
         disabled: influence.disabled,
-        statRef: undefined!,
-        text: undefined!,
-        tag: undefined!,
-        sources: undefined!,
-        tradeId: STAT_BY_REF(INFLUENCE_PSEUDO_TEXT[influence.value])!.trade.ids[ModifierType.Pseudo]
+        tradeId: pseudoStatByRef(INFLUENCE_PSEUDO_TEXT[influence.value])!.trade.ids[ModifierType.Pseudo]
       })
     }
   }
 
   const qAnd = query.stats[0]
-  for (const stat of stats) {
-    if (stat.tradeId.length === 1) {
-      qAnd.filters.push(tradeIdToQuery(stat.tradeId[0], stat))
+  const qNot: TradeRequest['query']['stats'][number] = {
+    type: 'not',
+    filters: []
+  }
+
+  for (const stat of realStats) {
+    if (stat.not) {
+      for (const id of stat.tradeId) {
+        qNot.filters.push(tradeIdToQuery(id, stat))
+      }
     } else {
-      query.stats.push({
-        type: 'count',
-        value: { min: 1 },
-        disabled: stat.disabled,
-        filters: stat.tradeId.map(id => tradeIdToQuery(id, stat))
-      })
+      if (stat.tradeId.length === 1) {
+        qAnd.filters.push(tradeIdToQuery(stat.tradeId[0], stat))
+      } else {
+        query.stats.push({
+          type: 'count',
+          value: { min: 1 },
+          disabled: stat.disabled,
+          filters: stat.tradeId.map(id => tradeIdToQuery(id, stat))
+        })
+      }
     }
+  }
+
+  if (qNot.filters.length) {
+    query.stats.push(qNot)
   }
 
   return body
@@ -587,58 +622,48 @@ export async function requestResults (
       priceAmount: result.listing.price?.amount ?? 0,
       priceCurrency: result.listing.price?.currency ?? 'no price',
       hasNote: result.item.note != null,
+      hasFee: result.listing.fee != null,
       isMine: (result.listing.account.name === opts.accountName),
       ign: result.listing.account.lastCharacterName,
       accountName: result.listing.account.name,
-      accountStatus: result.listing.account.online
-        ? (result.listing.account.online.status === 'afk' ? 'afk' : 'online')
-        : 'offline'
+      accountStatus: (result.listing.fee != null)
+        ? 'online'
+        : result.listing.account.online
+          ? (result.listing.account.online.status === 'afk' ? 'afk' : 'online')
+          : 'offline'
     }
   })
 }
 
-function getMinMax (roll: StatFilter['roll']) {
+function getMinMax (roll: StatFilter['roll'], divisor: number) {
   if (!roll) {
     return { min: undefined, max: undefined }
   }
 
   const sign = roll.tradeInvert ? -1 : 1
-  const a = typeof roll.min === 'number' ? roll.min * sign : undefined
-  const b = typeof roll.max === 'number' ? roll.max * sign : undefined
+  const a = typeof roll.min === 'number' ? roll.min * sign / divisor : undefined
+  const b = typeof roll.max === 'number' ? roll.max * sign / divisor : undefined
 
   return !roll.tradeInvert ? { min: a, max: b } : { min: b, max: a }
 }
 
-function tradeIdToQuery (id: string, stat: StatFilter) {
-  // NOTE: if there will be too many overrides in the future,
-  //       consider moving them to stats.ndjson
-
+function tradeIdToQuery (id: string, stat: Pick<StatFilter, 'roll' | 'option' | 'disabled'>) {
   let roll = stat.roll
 
-  // fixes Corrupted Implicit "Bleeding cannot be inflicted on you"
-  if (id === 'implicit.stat_1901158930') {
-    if (stat.roll?.value === 100) {
-      roll = undefined // stat semantic type is flag
-    }
-  // fixes "Cannot be Poisoned" from Essence
-  } else if (id === 'explicit.stat_3835551335') {
-    if (stat.roll?.value === 100) {
-      roll = undefined // stat semantic type is flag
-    }
-  // fixes "Instant Recovery" on Flasks
-  } else if (id.endsWith('stat_1526933524')) {
-    if (stat.roll?.value === 100) {
-      roll = undefined // stat semantic type is flag
-    }
-  // fixes Delve "Reservation Efficiency of Skills"
-  } else if (id.endsWith('stat_1269219558')) {
-    roll = { ...roll!, tradeInvert: !(roll!.tradeInvert) }
+  const divMinMax = id.startsWith('{div_by_100}') ? 100 : 1
+  if (id.startsWith('{empty}') ||
+    (id.startsWith('{empty_if_100}') && roll?.value === 100)
+  ) {
+    roll = undefined
+  }
+  if (id.startsWith('{')) {
+    id = id.slice(id.indexOf('}') + 1)
   }
 
   return {
     id,
     value: {
-      ...getMinMax(roll),
+      ...getMinMax(roll, divMinMax),
       option: stat.option != null
         ? stat.option.value
         : undefined

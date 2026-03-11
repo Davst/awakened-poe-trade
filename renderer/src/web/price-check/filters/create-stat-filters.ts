@@ -5,7 +5,9 @@ import { FilterTag, ItemHasEmptyModifier, StatFilter } from './interfaces'
 import { filterPseudo } from './pseudo'
 import { applyRules as applyAtzoatlRules } from './pseudo/atzoatl-rules'
 import { applyRules as applyMirroredTabletRules } from './pseudo/reflection-rules'
-import { filterItemProp, filterBasePercentile } from './pseudo/item-property'
+import { filterItemProp, filterBasePercentile, filterMemoryStrands } from './pseudo/item-property'
+import { mapProps, valdoBadMods } from './pseudo/maps'
+import { applyFlaskHybridMod } from './pseudo/flasks'
 import { decodeOils, applyAnointmentRules } from './pseudo/anointments'
 import { StatBetter, CLIENT_STRINGS } from '@/assets/data'
 
@@ -31,7 +33,7 @@ export function createExactStatFilters (
     !item.isSynthesised
   ) return []
 
-  const keepByType = [ModifierType.Pseudo, ModifierType.Fractured, ModifierType.Enchant, ModifierType.Necropolis]
+  const keepByType = [ModifierType.Pseudo, ModifierType.Fractured, ModifierType.Enchant, ModifierType.Necropolis, ModifierType.Imbued]
 
   if (
     !item.influences.length &&
@@ -60,12 +62,17 @@ export function createExactStatFilters (
 
   const ctx: FiltersCreationContext = {
     item,
-    searchInRange: Math.min(2, opts.searchStatRange),
+    searchInRange: (item.category !== ItemCategory.Map)
+      ? Math.min(2, opts.searchStatRange)
+      : opts.searchStatRange,
     filters: [],
     statsByType: statsByType.filter(calc => keepByType.includes(calc.type))
   }
 
   filterBasePercentile(ctx)
+  filterMemoryStrands(ctx)
+  mapProps(ctx)
+  valdoBadMods(ctx)
 
   ctx.filters.push(
     ...ctx.statsByType.map(mod => calculatedStatToFilter(mod, ctx.searchInRange, item))
@@ -77,6 +84,14 @@ export function createExactStatFilters (
   }
   if (item.info.refName === 'Mirrored Tablet') {
     applyMirroredTabletRules(ctx.filters)
+    return ctx.filters
+  }
+  if (item.category === ItemCategory.Map) {
+    for (const filter of ctx.filters) {
+      if (filter.tag !== FilterTag.Property && filter.tag !== FilterTag.Pseudo) {
+        filter.disabled = false
+      }
+    }
     return ctx.filters
   }
 
@@ -103,6 +118,7 @@ export function createExactStatFilters (
     applyClusterJewelRules(ctx.filters)
   } else if (item.category === ItemCategory.Flask) {
     applyFlaskRules(ctx.filters)
+    applyFlaskHybridMod(ctx)
   } else if (
     item.category === ItemCategory.MemoryLine ||
     item.category === ItemCategory.SanctumRelic ||
@@ -141,6 +157,7 @@ export function initUiModFilters (
     if (item.info.refName === "Emperor's Vigilance") {
       filterBasePercentile(ctx)
     }
+    filterMemoryStrands(ctx, 'hide_memory_strands')
   }
 
   if (!item.isCorrupted && !item.isMirrored) {
@@ -188,6 +205,10 @@ export function calculatedStatToFilter (
       },
       disabled: false
     }
+
+    if (filter.oils) {
+      filter.disabled = true
+    }
   }
 
   const roll = statSourcesTotal(
@@ -221,6 +242,8 @@ export function calculatedStatToFilter (
       if (!fixedStats.includes(filter.statRef)) {
         filter.tag = FilterTag.Variant
       }
+    } else if (sources.some(s => s.modifier.info.generation === 'foulborn')) {
+      filter.tag = FilterTag.Foulborn
     } else if (sources.some(s => CLIENT_STRINGS.SHAPER_MODS.includes(s.modifier.info.name!))) {
       filter.tag = FilterTag.Shaper
     } else if (sources.some(s => CLIENT_STRINGS.ELDER_MODS.includes(s.modifier.info.name!))) {
@@ -340,6 +363,12 @@ function hideNotVariableStat (filter: StatFilter, item: ParsedItem) {
     filter.roll.max = undefined
     filter.hidden = 'filters.hide_const_roll'
   }
+
+  if (item.isFoulborn && filter.tag === FilterTag.Explicit) {
+    // some mod not being replaced with foulborn one can be important
+    filter.hidden = undefined
+    filter.disabled = false
+  }
 }
 
 function filterFillMinMax (
@@ -391,6 +420,7 @@ function finalFilterTweaks (ctx: FiltersCreationContext) {
     applyClusterJewelRules(ctx.filters)
   } else if (item.category === ItemCategory.Flask) {
     applyFlaskRules(ctx.filters)
+    applyFlaskHybridMod(ctx)
   }
 
   const hasEmptyModifier = showHasEmptyModifier(ctx)
@@ -420,6 +450,8 @@ function finalFilterTweaks (ctx: FiltersCreationContext) {
         // hide only if fractured mod has corresponding explicit variant
         filter.hidden = 'filters.hide_for_crafting'
       }
+    } else if (filter.tag === FilterTag.Foulborn || filter.tag === FilterTag.Variant) {
+      filter.disabled = false
     }
   }
 
