@@ -22,7 +22,6 @@ win:
   - "portable"
   forceCodeSigning: false
   signAndEditExecutable: false
-  signDlls: false
 linux:
   target:
   - "AppImage"
