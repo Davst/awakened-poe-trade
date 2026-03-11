@@ -223,7 +223,10 @@
     "downloads_page": "Open the Downloads page",
     "installed_on_exit": "It will be installed automatically on exit",
     "download_manually": "You can download it from GitHub",
-    "download_disabled": "You have disabled automatic updates download"
+    "download_disabled": "You have disabled automatic updates download",
+    "upstream_available": "Upstream has a newer release: {0}",
+    "upstream_explainer": "Update this fork and publish the matching version here if you want in-app updates to come from your repo.",
+    "upstream_release_page": "Open upstream releases"
   },
   "widget_menu": {
     "add": "add widget\u2026",

@@ -3,6 +3,10 @@
     <p>{{ updateInfo.str1 }}</p>
     <p class="text-gray-500">{{ updateInfo.str2 }}</p>
   </div>
+  <div v-if="upstreamInfo" class="bg-yellow-950/60 mt-2 mx-4 rounded py-1 px-2 border border-yellow-800/60">
+    <p>{{ upstreamInfo.str1 }}</p>
+    <p class="text-yellow-300/80">{{ upstreamInfo.str2 }}</p>
+  </div>
   <div v-if="leagues.isLoading.value" class="pt-2 px-4">
     <i class="fas fa-info-circle text-gray-600"></i> {{ t('app.leagues_loading') }}</div>
   <ui-error-box class="mx-4 mt-4" v-else-if="leagues.error.value">
@@ -39,6 +43,18 @@ const updateInfo = computed(() => {
         : null
     default:
       return null
+  }
+})
+
+const upstreamInfo = computed(() => {
+  const rawInfo = Host.upstreamVersion.value
+  if (rawInfo.state !== 'update-available') {
+    return null
+  }
+
+  return {
+    str1: t('updates.upstream_available', [rawInfo.version]),
+    str2: t('updates.upstream_explainer')
   }
 })
 

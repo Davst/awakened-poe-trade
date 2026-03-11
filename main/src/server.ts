@@ -109,6 +109,7 @@ export async function startServer (
       const resBody: HostState = {
         version: app.getVersion(),
         updater: appUpdater.info,
+        upstreamVersion: appUpdater.upstreamInfo,
         contents: await configStore.load()
       }
       res.end(JSON.stringify(resBody))

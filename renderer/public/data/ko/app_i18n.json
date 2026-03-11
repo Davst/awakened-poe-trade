@@ -215,7 +215,10 @@
     "downloads_page": "다운로드 페이지를 열어주세요",
     "installed_on_exit": "종료 시 자동으로 설치 됩니다.",
     "download_manually": "GitHub에서도 다운로드 가능합니다.",
-    "download_disabled": "자동 업데이트를 비활성화 하였습니다."
+    "download_disabled": "자동 업데이트를 비활성화 하였습니다.",
+    "upstream_available": "업스트림에 더 새 릴리스가 있습니다: {0}",
+    "upstream_explainer": "앱 내 업데이트를 자신의 포크에서 받으려면 이 포크를 갱신하고 같은 버전을 여기에도 배포하세요.",
+    "upstream_release_page": "업스트림 릴리스 열기"
   },
   "widget_menu": {
     "add": "위젯 추가 \u2026",
