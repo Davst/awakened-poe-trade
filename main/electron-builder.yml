@@ -17,11 +17,11 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 win:
+  icon: "build/icons/icon.ico"
   target:
   - "nsis"
   - "portable"
   forceCodeSigning: false
-  signAndEditExecutable: false
 linux:
   target:
   - "AppImage"
