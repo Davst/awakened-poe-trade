@@ -3,7 +3,7 @@
     style="top: 0; left: 0; height: 100%; width: 100%; position: absolute;"
     class="flex grow h-full pointer-events-none" :class="{
     'flex-row': clickPosition === 'stash',
-    'flex-row-reverse': clickPosition === 'inventory',
+    'flex-row-reverse': clickPosition === 'inventory'
   }">
     <div v-if="!isBrowserShown" class="layout-column shrink-0"
       style="width: var(--game-panel);">

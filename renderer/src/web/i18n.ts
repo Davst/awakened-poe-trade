@@ -12,7 +12,7 @@ export async function init (lang: string) {
     fallbackWarn: false,
     missingWarn: false,
     messages: {
-      // eslint-disable-next-line quote-props
+      // eslint-disable-next-line @stylistic/quote-props
       'en': await (await fetch(`${import.meta.env.BASE_URL}data/en/app_i18n.json`)).json()
     }
   })

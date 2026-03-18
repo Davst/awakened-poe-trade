@@ -50,7 +50,7 @@
                     >{{ t(altQuality) }}</button>
                 </div>
                 <div v-else-if="item.unique" class="flex gap-x-1">
-                  <button  @click="selectItem(item, { unique: true })"
+                  <button @click="selectItem(item, { unique: true })"
                     >{{ t('Select') }}</button>
                 </div>
               </div>
@@ -209,7 +209,7 @@ const wm = inject<WidgetManager>('wm')!
 const { t } = useI18nNs('item_search')
 const { findPriceByQuery, autoCurrency, queuePricesFetch } = usePoeninja()
 
-const showTimeout = shallowRef<{ reset:() => void } | null>(null)
+const showTimeout = shallowRef<{ reset: () => void } | null>(null)
 
 nextTick(() => {
   props.config.wmFlags = ['invisible-on-blur']
@@ -292,14 +292,14 @@ function makeInvisible () {
 function starredItemClick (e: MouseEvent, item: SelectedItem) {
   const parsed = (item.info.namespace === 'GEM')
     ? createVirtualItem({
-      category: ItemCategory.Gem,
-      info: item.info,
-      gemLevel: 1
-    })
+        category: ItemCategory.Gem,
+        info: item.info,
+        gemLevel: 1
+      })
     : createVirtualItem({
-      rarity: ItemRarity.Unique,
-      info: item.info
-    })
+        rarity: ItemRarity.Unique,
+        info: item.info
+      })
 
   Host.selfDispatch({
     name: 'MAIN->CLIENT::item-text',

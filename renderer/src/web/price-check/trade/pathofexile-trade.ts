@@ -1,4 +1,4 @@
-import { ItemInfluence, ItemCategory, ParsedItem } from '@/parser'
+import { ItemInfluence, ItemCategory } from '@/parser'
 import { ItemFilters, StatFilter, INTERNAL_TRADE_IDS, InternalTradeId } from '../filters/interfaces'
 import { setProperty as propSet } from 'dot-prop'
 import { DateTime } from 'luxon'
@@ -83,7 +83,7 @@ const INFLUENCE_PSEUDO_TEXT = {
 interface FilterBoolean { option?: 'true' | 'false' }
 interface FilterRange { min?: number, max?: number }
 
-interface TradeRequest { /* eslint-disable camelcase */
+interface TradeRequest {
   query: {
     status: { option: 'online' | 'securable' | 'available' | 'any' }
     name?: string | { discriminator: string, option: string }
@@ -254,7 +254,7 @@ export interface PricingResult {
   ign: string
 }
 
-export function createTradeRequest (filters: ItemFilters, stats: StatFilter[], item: ParsedItem) {
+export function createTradeRequest (filters: ItemFilters, stats: StatFilter[]) {
   const body: TradeRequest = {
     query: {
       status: {

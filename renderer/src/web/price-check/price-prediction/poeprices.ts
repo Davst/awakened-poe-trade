@@ -6,7 +6,7 @@ import { usePoeninja } from '@/web/background/Prices'
 
 const cache = new Cache()
 
-interface PoepricesApiResponse { /* eslint-disable camelcase */
+interface PoepricesApiResponse {
   currency: 'chaos' | 'divine' | 'exalt'
   error: number
   error_msg: string
@@ -40,7 +40,7 @@ export async function requestPoeprices (item: ParsedItem): Promise<RareItemPrice
     const response = await Host.proxy(`www.poeprices.info/api?${query}`)
     try {
       data = await response.json() as PoepricesApiResponse
-    } catch (e) {
+    } catch {
       throw new Error(`${response.status}, poeprices.info API is under load or down.`)
     }
 

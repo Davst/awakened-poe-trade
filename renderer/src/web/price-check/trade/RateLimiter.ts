@@ -79,8 +79,8 @@ export class RateLimiter {
         stack: ignoreState
           ? []
           : l.stack
-            .map(entry => entry.releasedAt - now)
-            .sort((a, b) => a - b)
+              .map(entry => entry.releasedAt - now)
+              .sort((a, b) => a - b)
       }))
     }
 
