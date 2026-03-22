@@ -80,7 +80,7 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     if (!isActive) {
       clientLimits.delete(limit)
       limit.destroy()
-      DEBUG && console.log('Destroy', limit.toString())
+      if (DEBUG) console.log('Destroy', limit.toString())
     }
   }
 
@@ -90,14 +90,14 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     const delta = (serverLimit.state - limit.stack.length)
 
     if (delta === 0) {
-      DEBUG && console.log('Limits are in sync')
+      if (DEBUG) console.log('Limits are in sync')
     } else if (delta > 0) {
-      DEBUG && console.error(`Rate limit state on Server is greater by ${Math.abs(delta)}. Bursting to prevent rate limiting.`)
+      if (DEBUG) console.error(`Rate limit state on Server is greater by ${Math.abs(delta)}. Bursting to prevent rate limiting.`)
       for (let i = 0; i < Math.min(delta, limit.available); ++i) {
         limit.wait()
       }
     } else if (delta < 0) {
-      DEBUG && console.warn(`Rate limit state on Client is greater by ${Math.abs(delta)}`)
+      if (DEBUG) console.warn(`Rate limit state on Client is greater by ${Math.abs(delta)}`)
     }
   }
 
@@ -110,7 +110,7 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
 
     const rl = new RateLimiter(serverLimit.max, serverLimit.window)
     clientLimits.add(rl)
-    DEBUG && console.log('Add', rl.toString())
+    if (DEBUG) console.log('Add', rl.toString())
 
     for (let i = 0; i < serverLimit.state; ++i) {
       rl.wait()
