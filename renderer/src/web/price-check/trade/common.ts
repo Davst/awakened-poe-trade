@@ -21,7 +21,6 @@ export type TradeResponse<T> = (T & { error?: null }) | {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function apiToSatisfySearch (item: ParsedItem, stats: StatFilter[], filters: ItemFilters): 'trade' | 'bulk' {
   if (stats.some(s => !s.disabled)) {
     return 'trade'
@@ -59,8 +58,6 @@ export function adjustRateLimits (clientLimits: Set<RateLimiter>, headers: Heade
 }
 
 function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, stateStr: string): void {
-  /* eslint-disable no-console, @typescript-eslint/no-unused-expressions */
-
   const DEBUG = false
   const DESYNC_FIX = AppConfig<PriceCheckWidget>('price-check')!.apiLatencySeconds
 
@@ -97,7 +94,6 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     } else if (delta > 0) {
       DEBUG && console.error(`Rate limit state on Server is greater by ${Math.abs(delta)}. Bursting to prevent rate limiting.`)
       for (let i = 0; i < Math.min(delta, limit.available); ++i) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         limit.wait()
       }
     } else if (delta < 0) {
@@ -117,12 +113,9 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     DEBUG && console.log('Add', rl.toString())
 
     for (let i = 0; i < serverLimit.state; ++i) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       rl.wait()
     }
   }
-
-  /* eslint-enable */
 }
 
 export function preventQueueCreation (targets: Array<{ count: number, limiters: Iterable<RateLimiter> }>) {

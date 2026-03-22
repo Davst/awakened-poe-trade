@@ -4,6 +4,9 @@ import {
   CLIENT_STRINGS_REF as _$REF,
   ITEM_BY_TRANSLATED,
   ITEM_BY_REF,
+  ITEMS_ITERATOR,
+  DISENCHANT_UNIQUE_ITEMS_ITERATOR,
+  CLIENT_STRINGS,
   STAT_BY_MATCH_STR,
   BaseType
 } from '@/assets/data'
@@ -14,7 +17,6 @@ import { IncursionRoom, ParsedItem, ItemInfluence, ItemRarity } from './ParsedIt
 import { magicBasetype } from './magic-name'
 import { isModInfoLine, groupLinesByMod, parseModInfoLine, parseModType, ModifierInfo, ParsedModifier, ENCHANT_LINE, SCOURGE_LINE, IMPLICIT_LINE } from './advanced-mod-desc'
 import { calcPropPercentile, QUALITY_STATS } from './calc-q20'
-import { ITEMS_ITERATOR, DISENCHANT_UNIQUE_ITEMS_ITERATOR, CLIENT_STRINGS } from '@/assets/data'
 
 type SectionParseResult =
   | 'SECTION_PARSED'
