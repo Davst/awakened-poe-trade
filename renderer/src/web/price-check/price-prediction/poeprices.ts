@@ -107,7 +107,7 @@ export async function sendFeedback (
     method: 'POST',
     body
   })
-  const text = await response.text()
+  await response.text()
   // console.assert(text === `"${feedback.option}"`)
 }
 
