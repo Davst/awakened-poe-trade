@@ -136,7 +136,7 @@ class ResourceHandle {
   private _tmid!: ReturnType<typeof setTimeout>
   private _cb: () => void
   private _resolve!: () => void
-  private _reject!: (reason?: any) => void
+  private _reject!: (reason?: unknown) => void
 
   constructor (millis: number, cb: () => void) {
     this.borrowedAt = Date.now()
@@ -153,7 +153,7 @@ class ResourceHandle {
     })
   }
 
-  public cancel (reason?: any) {
+  public cancel (reason?: unknown) {
     clearTimeout(this._tmid)
     this._cb()
     this._reject(reason)

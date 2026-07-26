@@ -175,9 +175,9 @@ export function createFilters (
       disabled: false
     }
 
-    if (item.heist?.wingsRevealed) {
+    if (item.heistBlueprint?.wingsRevealed) {
       filters.heistWingsRevealed = {
-        value: item.heist.wingsRevealed,
+        value: item.heistBlueprint.wingsRevealed,
         disabled: false
       }
     }
@@ -202,7 +202,8 @@ export function createFilters (
         disabled = true
       } else if (
         item.category === ItemCategory.SanctumRelic ||
-        item.category === ItemCategory.Charm
+        item.category === ItemCategory.Charm ||
+        item.category === ItemCategory.HeistContract
       ) {
         disabled = false
       }
@@ -230,13 +231,6 @@ export function createFilters (
   if (item.sockets?.linked) {
     filters.linkedSockets = {
       value: item.sockets.linked,
-      disabled: false
-    }
-  }
-
-  if (item.sockets?.white) {
-    filters.whiteSockets = {
-      value: item.sockets.white,
       disabled: false
     }
   }
@@ -397,6 +391,15 @@ export function createFilters (
   if (item.rarity === ItemRarity.Unique) {
     filters.foulborn = {
       value: Boolean(item.isFoulborn)
+    }
+  }
+
+  if (item.category === ItemCategory.HeistContract) {
+    if (item.rarity !== ItemRarity.Unique) {
+      filters.areaLevel = {
+        value: item.areaLevel!,
+        disabled: false
+      }
     }
   }
 

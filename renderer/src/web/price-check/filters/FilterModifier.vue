@@ -183,12 +183,12 @@ export default defineComponent({
       inputMaxEl,
       sliderValue,
       inputMin: computed({
-        get (): any { return props.filter.roll!.min },
-        set (value: '' | number) { props.filter.roll!.min = value }
+        get () { return props.filter.roll!.min },
+        set (value: '' | number | undefined) { props.filter.roll!.min = value }
       }),
       inputMax: computed({
-        get (): any { return props.filter.roll!.max },
-        set (value: '' | number) { props.filter.roll!.max = value }
+        get () { return props.filter.roll!.max },
+        set (value: '' | number | undefined) { props.filter.roll!.max = value }
       }),
       tag: computed(() => props.filter.tag),
       // TODO: change
@@ -197,7 +197,7 @@ export default defineComponent({
       fontSize: computed(() => AppConfig().fontSize),
       isDisabled: computed(() => props.filter.disabled),
       text: computed(() => {
-        if (!(INTERNAL_TRADE_IDS as readonly string[]).includes(props.filter.tradeId[0])) {
+        if (!INTERNAL_TRADE_IDS.includes(props.filter.tradeId[0])) {
           return props.filter.text
         } else {
           return t(props.filter.tradeId[0], ['#', '#'])
@@ -307,11 +307,14 @@ export default defineComponent({
   align-items: center;
   @apply -mx-1 pl-0.5 gap-x-0.5 text-gray-600;
   text-shadow: 0 0 4px theme('colors.gray.900');
+  overflow: clip visible;
+  min-width: 0;
 
   &::before {
     background-size: contain;
     @apply w-5 h-5 -my-5;
     content: '';
+    flex-shrink: 0;
   }
 }
 .tag-explicit-shaper::before {

@@ -8,8 +8,7 @@ standard[standard.length - 1].files = ['**/*.ts', '**/*.vue']
 export default defineConfigWithVueTs(
   { ignores: ['src/*.d.ts'] },
   pluginVue.configs['flat/base'],
-  vueTsConfigs.base,
-  vueTsConfigs.eslintRecommended,
+  vueTsConfigs.strict,
   standard,
   {
     files: ['**/*.vue'],
