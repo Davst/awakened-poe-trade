@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -32,4 +33,8 @@ test('only installed Windows and Linux AppImage builds download automatically', 
   assert.equal(canAutoDownloadUpdate('darwin', {}), false)
   assert.equal(canAutoDownloadUpdate('linux', { APPIMAGE: '/opt/apt.AppImage' }), true)
   assert.equal(canAutoDownloadUpdate('linux', {}), false)
+})
+test('the fork updater follows published releases even with a SemVer suffix', () => {
+  const source = readFileSync(new URL('../src/AppUpdater.ts', import.meta.url), 'utf8')
+  assert.match(source, /autoUpdater\.allowPrerelease = false/)
 })

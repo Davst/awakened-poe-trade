@@ -51,6 +51,10 @@ export class AppUpdater {
       }
     })
 
+    // Fork versions have a SemVer suffix, but are published as full releases.
+    // The prerelease feed can list tags before their updater metadata is public.
+    autoUpdater.allowPrerelease = false
+
     // https://www.electron.build/configuration/nsis.html#portable
     autoUpdater.autoDownload = canAutoDownloadUpdate(process.platform, process.env)
 
