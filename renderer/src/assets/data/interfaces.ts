@@ -18,8 +18,11 @@ export interface Stat {
   dp?: true
   matchers: StatMatcher[]
   better: StatBetter
+  modFamily?: string[]
   fromAreaMods?: 'yes' | 'ubermap_exclusive' | 'heist_exclusive'
   anointments?: Array<{ roll: number, oils: string }>
+  mercenary?: { icon?: string, supports?: string[], tier?: number, canonical?: string, syntheticFamily?: true }
+  jewelleryQuality?: { catalyst: string }
   trade: {
     inverted?: true
     option?: true
@@ -64,13 +67,14 @@ export interface DisenchantUniqueItem {
 export interface BaseType {
   name: string
   refName: string
-  namespace: (
-    'DIVINATION_CARD' |
-    'CAPTURED_BEAST' |
-    'UNIQUE' |
-    'ITEM' |
-    'GEM'
-  )
+  namespace:
+    | 'DIVINATION_CARD'
+    | 'CAPTURED_BEAST'
+    | 'UNIQUE'
+    | 'ITEM'
+    | 'GEM'
+    | 'AREA'
+    | 'MERCENARY_BUILD'
   icon: string
   w?: number
   h?: number
@@ -97,8 +101,10 @@ export interface BaseType {
     fixedStats?: Array<Stat['ref']>
     disenchantValue?: number
   }
-  map?: {
+  area?: {
     screenshot?: string
+    special?: true
+    blighted?: true
   }
   gem?: {
     vaal?: true
@@ -112,6 +118,14 @@ export interface BaseType {
     es?: [min: number, max: number]
     ward?: [min: number, max: number]
   }
+  mercenaryBuild?: BaseType['refName'] | MercenaryBuild
+}
+
+export interface MercenaryBuild {
+  skills: Array<{
+    type: 'primary' | 'secondary' | 'utility'
+    name: string
+  }>
 }
 
 export interface TranslationDict {
@@ -215,6 +229,8 @@ export interface TranslationDict {
   INCURSION_OBSTRUCTED: string
   EATER_IMPLICIT: RegExp
   EXARCH_IMPLICIT: RegExp
+  ITEM_EATER: string
+  ITEM_EXARCH: string
   ELDRITCH_MOD_R1: string
   ELDRITCH_MOD_R2: string
   ELDRITCH_MOD_R3: string
@@ -237,6 +253,12 @@ export interface TranslationDict {
   UNMODIFIABLE: string
   FOULBORN_NAME: RegExp
   FOULBORN_MODIFIER: string
+  VESTIGIAL_NAME: RegExp
+  VESTIGIAL_IMPLICIT: string
+  MAP_AREA: string
+  CHART_SULPHUR: string
+  MERCENARY_LEVEL: string
+  MERCENARY_BUILD: string
   // ---
   CHAT_SYSTEM: RegExp
   CHAT_TRADE: RegExp

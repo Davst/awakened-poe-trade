@@ -1,5 +1,5 @@
 import { shallowReactive } from 'vue'
-import type { StatFilter } from '../filters/interfaces'
+import type { ItemFilters, FilterOrGroup } from '../filters/interfaces'
 import { AppConfig } from '@/web/Config'
 import type { PriceCheckWidget } from '@/web/overlay/interfaces'
 import { RateLimiter } from './RateLimiter'
@@ -21,8 +21,9 @@ export type TradeResponse<T> = (T & { error?: null }) | {
   }
 }
 
-export function apiToSatisfySearch (item: ParsedItem, stats: StatFilter[]): 'trade' | 'bulk' {
-  if (stats.some(s => !s.disabled)) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function apiToSatisfySearch (item: ParsedItem, stats: FilterOrGroup[], filters: ItemFilters): 'trade' | 'bulk' {
+  if (stats.some(s => s.group ? !s.meta.disabled : !s.disabled)) {
     return 'trade'
   }
 
@@ -58,6 +59,8 @@ export function adjustRateLimits (clientLimits: Set<RateLimiter>, headers: Heade
 }
 
 function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, stateStr: string): void {
+  /* eslint-disable no-console, @typescript-eslint/no-unused-expressions */
+
   const DEBUG = false
   const DESYNC_FIX = AppConfig<PriceCheckWidget>('price-check')!.apiLatencySeconds
 
@@ -80,7 +83,7 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     if (!isActive) {
       clientLimits.delete(limit)
       limit.destroy()
-      if (DEBUG) console.log('Destroy', limit.toString())
+      DEBUG && console.log('Destroy', limit.toString())
     }
   }
 
@@ -90,14 +93,15 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
     const delta = (serverLimit.state - limit.stack.length)
 
     if (delta === 0) {
-      if (DEBUG) console.log('Limits are in sync')
+      DEBUG && console.log('Limits are in sync')
     } else if (delta > 0) {
-      if (DEBUG) console.error(`Rate limit state on Server is greater by ${Math.abs(delta)}. Bursting to prevent rate limiting.`)
+      DEBUG && console.error(`Rate limit state on Server is greater by ${Math.abs(delta)}. Bursting to prevent rate limiting.`)
       for (let i = 0; i < Math.min(delta, limit.available); ++i) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         limit.wait()
       }
     } else if (delta < 0) {
-      if (DEBUG) console.warn(`Rate limit state on Client is greater by ${Math.abs(delta)}`)
+      DEBUG && console.warn(`Rate limit state on Client is greater by ${Math.abs(delta)}`)
     }
   }
 
@@ -110,12 +114,15 @@ function _adjustRateLimits (clientLimits: Set<RateLimiter>, limitStr: string, st
 
     const rl = new RateLimiter(serverLimit.max, serverLimit.window)
     clientLimits.add(rl)
-    if (DEBUG) console.log('Add', rl.toString())
+    DEBUG && console.log('Add', rl.toString())
 
     for (let i = 0; i < serverLimit.state; ++i) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       rl.wait()
     }
   }
+
+  /* eslint-enable */
 }
 
 export function preventQueueCreation (targets: Array<{ count: number, limiters: Iterable<RateLimiter> }>) {

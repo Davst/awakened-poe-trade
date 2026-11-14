@@ -27,12 +27,12 @@ app.enableSandbox()
 let tray: AppTray
 
 app.on('ready', async () => {
-  tray = new AppTray(eventPipe)
   const logger = new Logger(eventPipe)
   const gameLogWatcher = new GameLogWatcher(eventPipe, logger)
   const gameConfig = new GameConfig(eventPipe, logger)
   const poeWindow = new GameWindow()
   const appUpdater = new AppUpdater(eventPipe)
+  tray = new AppTray(eventPipe, () => appUpdater.checkNow())
   const _httpProxy = new HttpProxy(server, logger)
 
   setTimeout(

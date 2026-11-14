@@ -1,13 +1,17 @@
 import path from 'path'
 import { app, Tray, Menu, shell, nativeImage, dialog } from 'electron'
 import type { ServerEvents } from './server'
+import { buildTrayMenuTemplate } from '../build/app-tray-menu.mjs'
 
 export class AppTray {
   public overlayKey = 'Shift + Space'
   private tray: Tray
   serverPort = 0
 
-  constructor (server: ServerEvents) {
+  constructor (
+    server: ServerEvents,
+    private readonly checkForUpdates: () => void
+  ) {
     let trayImage = nativeImage.createFromPath(
       path.join(
         __dirname,
@@ -34,36 +38,30 @@ export class AppTray {
   }
 
   rebuildMenu () {
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'Settings/League',
-        click: () => {
-          dialog.showMessageBox({
-            title: 'Settings',
-            message: `Open Path of Exile and press "${this.overlayKey}". Click on the button with cog icon there.`
-          })
+    const contextMenu = Menu.buildFromTemplate(buildTrayMenuTemplate({
+      overlayKey: this.overlayKey,
+      serverPort: this.serverPort,
+      sendUserAction: (action) => {
+        if (action === 'check-for-update') {
+          this.checkForUpdates()
         }
       },
-      {
-        label: 'Open in Browser',
-        click: () => {
-          shell.openExternal(`http://localhost:${this.serverPort}`)
-        }
+      showSettings: () => {
+        dialog.showMessageBox({
+          title: 'Settings',
+          message: `Open Path of Exile and press "${this.overlayKey}". Click on the button with cog icon there.`
+        })
       },
-      { type: 'separator' },
-      {
-        label: 'Open config folder',
-        click: () => {
-          shell.openPath(path.join(app.getPath('userData'), 'apt-data'))
-        }
+      openBrowser: () => {
+        shell.openExternal(`http://localhost:${this.serverPort}`)
       },
-      {
-        label: 'Quit',
-        click: () => {
-          app.quit()
-        }
+      openConfigFolder: () => {
+        shell.openPath(path.join(app.getPath('userData'), 'apt-data'))
+      },
+      quit: () => {
+        app.quit()
       }
-    ])
+    }))
 
     this.tray.setContextMenu(contextMenu)
   }

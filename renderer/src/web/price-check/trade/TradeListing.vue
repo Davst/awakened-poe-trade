@@ -9,7 +9,7 @@
         <span v-if="!list" class="text-gray-600">...</span>
         <span v-else>{{ list.total }}{{ list.inexact ? '+' : '' }}</span>
       </div>
-      <online-filter v-if="list" :by-time="true" :filters="filters" api="trade" />
+      <online-filter v-if="list" :filters="filters" api="trade" />
       <div class="flex-1"></div>
       <trade-links v-if="list"
         :get-link="makeTradeLink" />
@@ -80,7 +80,8 @@
   </div>
   <ui-error-box v-else>
     <template #name>{{ t(':error') }}</template>
-    <p>Error: {{ error }}</p>
+    <p v-if="error.includes('JSON')">{{ t('app.leagues_failed_help') }}</p>
+    <p v-else>Error: {{ error }}</p>
     <template #actions>
       <button class="btn" @click="execSearch">{{ t('Retry') }}</button>
       <button class="btn" @click="openTradeLink">{{ t('Browser') }}</button>
@@ -96,7 +97,7 @@ import { requestTradeResultList, requestResults, createTradeRequest, PricingResu
 import { getTradeEndpoint } from './common'
 import { AppConfig } from '@/web/Config'
 import { PriceCheckWidget } from '@/web/overlay/interfaces'
-import { ItemFilters, StatFilter } from '../filters/interfaces'
+import { ItemFilters, FilterOrGroup } from '../filters/interfaces'
 import { ParsedItem } from '@/parser'
 import { artificialSlowdown } from './artificial-slowdown'
 import OnlineFilter from './OnlineFilter.vue'
@@ -111,6 +112,7 @@ const MIN_GROUPED = 10
 
 function useTradeApi () {
   let searchId = 0
+  let collapseMerchant = false
   const error = shallowRef<string | null>(null)
   const searchResult = shallowRef<SearchResult | null>(null)
   const fetchResults = shallowRef<PricingResult[]>([])
@@ -119,7 +121,7 @@ function useTradeApi () {
     const out: Array<PricingResult & { listedTimes: number }> = []
     for (const result of fetchResults.value) {
       if (result == null) break
-      if (out.length === 0 || result.hasFee) {
+      if (out.length === 0 || (result.hasFee && !collapseMerchant)) {
         out.push({ listedTimes: 1, ...result })
         continue
       }
@@ -147,7 +149,7 @@ function useTradeApi () {
     return out
   })
 
-  async function search (filters: ItemFilters, stats: StatFilter[]) {
+  async function search (filters: ItemFilters, stats: FilterOrGroup[]) {
     try {
       searchId += 1
       error.value = null
@@ -162,6 +164,7 @@ function useTradeApi () {
         return
       }
       searchResult.value = _searchResult
+      collapseMerchant = filters.trade.collapseMerchant
 
       // first two req are parallel, then sequential on demand
       {
@@ -205,13 +208,14 @@ function useTradeApi () {
 
 export default defineComponent({
   components: { OnlineFilter, TradeLinks, UiErrorBox },
+  emits: ['reset'],
   props: {
     filters: {
       type: Object as PropType<ItemFilters>,
       required: true
     },
     stats: {
-      type: Array as PropType<StatFilter[]>,
+      type: Array as PropType<FilterOrGroup[]>,
       required: true
     },
     item: {
@@ -219,7 +223,7 @@ export default defineComponent({
       required: true
     }
   },
-  setup (props) {
+  setup (props, ctx) {
     const widget = computed(() => AppConfig<PriceCheckWidget>('price-check')!)
 
     watch(() => props.item, (item) => {
@@ -259,6 +263,7 @@ export default defineComponent({
       makeTradeLink,
       openTradeLink () {
         showBrowser(makeTradeLink())
+        ctx.emit('reset')
       }
     }
   }

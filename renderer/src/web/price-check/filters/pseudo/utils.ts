@@ -42,10 +42,11 @@ function _findAndResolveByRef (
 
 export function findAndResolveByRef (
   name: string,
+  modType: ModifierType,
   itemCategory: ItemCategory | undefined,
   hint?: ResolveHint
 ): Stat {
-  const stat = _findAndResolveByRef(name, ModifierType.Explicit, itemCategory, hint)
+  const stat = _findAndResolveByRef(name, modType, itemCategory, hint)
   if (!stat) {
     throw new Error(`Unexpected stat shape: ${name}`)
   }
@@ -64,9 +65,35 @@ export function statToNotFilter (opts: {
     text: (opts.stat.matchers.find(
       matcher => Boolean(matcher.negate) === Boolean(opts.negateString)
     ) ?? opts.stat.matchers[0]).string,
-    tag: (opts.type as unknown) as FilterTag,
+    tag: opts.type,
     sources: [],
     disabled: opts.disabled,
     not: true
+  }
+}
+
+export function metaNotFilter (opts: {
+  disabled: StatFilter['disabled']
+}): StatFilter {
+  return {
+    tradeId: ['item.not_group'],
+    statRef: 'Not',
+    text: 'Not',
+    tag: FilterTag.FilterGroup,
+    sources: [],
+    disabled: opts.disabled
+  }
+}
+
+export function metaCountOneFilter (opts: {
+  disabled: StatFilter['disabled']
+}): StatFilter {
+  return {
+    tradeId: ['item.count_one_group'],
+    statRef: 'Count (1)',
+    text: 'Count (1)',
+    tag: FilterTag.FilterGroup,
+    sources: [],
+    disabled: opts.disabled
   }
 }

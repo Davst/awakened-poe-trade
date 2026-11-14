@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { ServerEvents } from './server'
 import type { UpdateInfo, UpstreamUpdateInfo } from '../../ipc/types'
+import { canAutoDownloadUpdate, compareVersions, deriveUpstreamBaselineVersion, normalizeVersion } from '../build/upstream-version.mjs'
 
 const UPSTREAM_RELEASES_URL = 'https://github.com/SnosMe/awakened-poe-trade/releases/latest'
 const UPSTREAM_RELEASE_API_URL = 'https://api.github.com/repos/SnosMe/awakened-poe-trade/releases/latest'
@@ -51,9 +52,9 @@ export class AppUpdater {
     })
 
     // https://www.electron.build/configuration/nsis.html#portable
-    autoUpdater.autoDownload = !process.env.PORTABLE_EXECUTABLE_DIR
+    autoUpdater.autoDownload = canAutoDownloadUpdate(process.platform, process.env)
 
-    if (!autoUpdater.autoDownload || process.platform === 'darwin') {
+    if (!autoUpdater.autoDownload) {
       this.noAutoUpdatesReason = 'not-supported'
     } else if (process.argv.includes('--no-updates')) {
       autoUpdater.autoDownload = false
@@ -85,6 +86,10 @@ export class AppUpdater {
     }
   }
 
+  checkNow () {
+    this.check()
+  }
+
   private check = async () => {
     void this.checkUpstreamVersion()
     try {
@@ -101,7 +106,7 @@ export class AppUpdater {
       const release = await fetchLatestUpstreamRelease()
       const checkedAt = Date.now()
 
-      if (compareVersions(release.version, app.getVersion()) > 0) {
+      if (compareVersions(release.version, deriveUpstreamBaselineVersion(app.getVersion())) > 0) {
         this.upstreamInfo = {
           state: 'update-available',
           checkedAt,
@@ -148,34 +153,4 @@ async function fetchLatestUpstreamRelease () {
   } finally {
     clearTimeout(timeout)
   }
-}
-
-function compareVersions (left: string, right: string) {
-  const leftVersion = parseVersion(left)
-  const rightVersion = parseVersion(right)
-  const length = Math.max(leftVersion.main.length, rightVersion.main.length)
-
-  for (let idx = 0; idx < length; idx++) {
-    const diff = (leftVersion.main[idx] ?? 0) - (rightVersion.main[idx] ?? 0)
-    if (diff !== 0) {
-      return diff
-    }
-  }
-
-  if (leftVersion.pre === rightVersion.pre) return 0
-  if (!leftVersion.pre.length) return 1
-  if (!rightVersion.pre.length) return -1
-  return leftVersion.pre.localeCompare(rightVersion.pre)
-}
-
-function parseVersion (version: string) {
-  const [main, pre = ''] = normalizeVersion(version).split('-', 2)
-  return {
-    main: main.split('.').map(part => Number.parseInt(part, 10) || 0),
-    pre
-  }
-}
-
-function normalizeVersion (version: string) {
-  return version.replace(/^v/i, '').trim()
 }

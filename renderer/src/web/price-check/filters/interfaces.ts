@@ -1,11 +1,10 @@
 import type { ItemInfluence, ItemCategory } from '@/parser'
-import type { StatCalculated } from '@/parser/modifiers'
-import type { ParsedItem } from '@/parser/ParsedItem'
+import { ModifierType, ModifierMechanic, type StatCalculated } from '@/parser/modifiers'
 
 export interface FilterPreset {
   id: string
   filters: ItemFilters
-  stats: StatFilter[]
+  stats: FilterOrGroup[]
 }
 
 interface SearchFilter {
@@ -13,16 +12,17 @@ interface SearchFilter {
   nameTrade?: string
   baseType?: string
   baseTypeTrade?: string
+  discriminatorTrade?: string
   category?: ItemCategory
 }
 
+interface SearchFilterSub extends SearchFilter {
+  sub?: SearchFilter & { disabled: boolean }
+}
+
 export interface ItemFilters {
-  searchExact: SearchFilter
-  searchRelaxed?: SearchFilter & { disabled: boolean }
-  discriminator?: {
-    value?: string
-    trade: string
-  }
+  searchExact: SearchFilterSub
+  searchRelaxed?: SearchFilterSub & { disabled: boolean }
   rarity?: {
     value: string
     disabled: boolean
@@ -53,6 +53,9 @@ export interface ItemFilters {
   foulborn?: {
     value: boolean
   }
+  vestigial?: {
+    value: boolean
+  }
   influences?: Array<{
     value: ItemInfluence
     disabled: boolean
@@ -61,7 +64,7 @@ export interface ItemFilters {
   gemLevel?: FilterNumeric
   mapTier?: FilterNumeric
   mapBlighted?: {
-    value: NonNullable<ParsedItem['mapBlighted']>
+    value: 'Blighted' | 'Blight-ravaged' | false
   }
   mapCompletionReward?: {
     name: string
@@ -78,16 +81,16 @@ export interface ItemFilters {
     disabled: boolean
   }
   areaLevel?: FilterNumeric
-  heistWingsRevealed?: FilterNumeric
   sentinelCharge?: FilterNumeric
   trade: {
     offline: boolean
     onlineInLeague: boolean
     merchantOnly: boolean
-    listed: string | undefined
-    currency: string | undefined
+    listed: string | null
+    currency: string | null
     league: string
     collapseListings: 'api' | 'app'
+    collapseMerchant: boolean
   }
 }
 
@@ -97,12 +100,25 @@ export interface FilterNumeric {
   disabled: boolean
 }
 
+export type FilterOrGroup =
+  | StatFilter
+  | FilterGroup
+
+export interface FilterGroup {
+  group: 'not' | 'one' | 'mercenary'
+  expanded: boolean // NOTE: mutable in UI
+  meta: StatFilter
+  stats: StatFilter[]
+}
+
 export interface StatFilter {
+  group?: never
   tradeId: string[]
   statRef: string
   text: string
   tag: FilterTag
   oils?: string[]
+  mercenary?: { icon?: string, tier?: number, maxTier?: boolean }
   sources: StatCalculated['sources']
   not?: true
   roll?: {
@@ -124,6 +140,8 @@ export interface StatFilter {
 }
 
 const _INTERNAL_TRADE_IDS = [
+  'item.not_group',
+  'item.count_one_group',
   'item.base_percentile',
   'item.memory_strands',
   'item.armour',
@@ -137,6 +155,7 @@ const _INTERNAL_TRADE_IDS = [
   'item.crit',
   'item.aps',
   'item.has_empty_modifier',
+  'item.mercenary_6link',
   'item.map_item_quantity',
   'item.map_item_rarity',
   'item.map_pack_size',
@@ -149,7 +168,10 @@ const _INTERNAL_TRADE_IDS = [
   'item.heist_job_agility',
   'item.heist_job_deception',
   'item.heist_job_engineering',
-  'item.heist_target_priceless'
+  'item.heist_target_priceless',
+  'item.heist_wings_revealed',
+  'item.heist_wings_total',
+  'item.chart_sulphur'
 ] as const
 
 export type InternalTradeId = typeof _INTERNAL_TRADE_IDS[number]
@@ -161,29 +183,24 @@ export enum ItemHasEmptyModifier {
   Suffix = 2
 }
 
-export enum FilterTag {
-  Pseudo = 'pseudo',
-  Explicit = 'explicit',
-  Implicit = 'implicit',
-  Crafted = 'crafted',
-  Enchant = 'enchant',
-  Scourge = 'scourge',
-  Fractured = 'fractured',
-  Corrupted = 'corrupted',
-  Synthesised = 'synthesised',
-  Foulborn = 'foulborn',
-  Eldritch = 'eldritch',
+enum FilterTagExtra {
   Variant = 'variant',
   Property = 'property',
-  Shaper = 'explicit-shaper',
-  Elder = 'explicit-elder',
-  Crusader = 'explicit-crusader',
-  Hunter = 'explicit-hunter',
-  Redeemer = 'explicit-redeemer',
-  Warlord = 'explicit-warlord',
-  Delve = 'explicit-delve',
-  Unveiled = 'explicit-veiled',
-  Incursion = 'explicit-incursion',
-  Infamous = 'explicit-infamous',
-  Essence = 'explicit-essence'
+  Brick = 'brick',
+  MercenaryPrimary = 'mercenary-primary',
+  MercenarySecondary = 'mercenary-secondary',
+  MercenaryUtility = 'mercenary-utility',
+  MercenarySupport = 'mercenary-support',
+  FilterGroup = 'filter-group'
+}
+
+export type FilterTag =
+  | ModifierType
+  | ModifierMechanic
+  | FilterTagExtra
+
+export const FilterTag = {
+  ...ModifierType,
+  ...ModifierMechanic,
+  ...FilterTagExtra
 }
